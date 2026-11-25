@@ -26,7 +26,7 @@ class Album:
         print(f"Album: {html.unescape(album.get('name', album_id))}")
         folder = self.manager.with_id(album.get("name"), album_id)
         album_artist = html.unescape(album.get("primary_artists") or "") or None
-        self.manager.download_songs(album["songs"], *parent, folder, album_artist=album_artist)
+        self.manager.download_songs(album["songs"], *parent, folder, album_artist=album_artist, numbered=True)
 
     def start_download(self, url):
         self.download_album(self.get_album_id(url))

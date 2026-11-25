@@ -215,3 +215,19 @@ def test_add_tags_album_artist(manager, monkeypatch):
     assert FakeMP4.saved["\xa9ART"] == ["Singer A"]
     manager.add_tags("x.mp4", {"artists": ["Singer A"]})
     assert FakeMP4.saved["aART"] == ["Singer A"]
+
+
+def test_album_tracks_are_numbered_in_order(manager):
+    seen = []
+    manager.download = lambda label, location, url, tags: seen.append(tags)
+    manager.download_songs(SONGS, "Albums", "Test [1]", numbered=True)
+    assert [t["track"] for t in seen] == [(1, 3), (2, 3), (3, 3)]
+    seen.clear()
+    manager.download_songs(SONGS, "Playlists", "Test [2]")
+    assert all("track" not in t for t in seen)
+
+
+def test_add_tags_track_number(manager, monkeypatch):
+    monkeypatch.setattr("scripts.download_manager.MP4", FakeMP4)
+    manager.add_tags("x.mp4", {"title": "Song", "track": (2, 7)})
+    assert FakeMP4.saved["trkn"] == [(2, 7)]

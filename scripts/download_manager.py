@@ -124,8 +124,8 @@ class Manager:
         os.replace(part_path, location)
         return True
 
-    def download_songs(self, songs, *folders, album_artist=None):
-        for song in songs:
+    def download_songs(self, songs, *folders, album_artist=None, numbered=False):
+        for position, song in enumerate(songs, start=1):
             try:
                 dec_url = self.decrypt_url(song["encrypted_media_url"], has_320(song))
                 filename = self.format_filename(song["song"], song["id"])
@@ -133,6 +133,9 @@ class Manager:
                 tags = tags_from_list_song(song)
                 if album_artist:
                     tags["album_artist"] = album_artist
+                # the api has no track numbers, but it lists an album's songs in track order
+                if numbered:
+                    tags["track"] = (position, len(songs))
                 self.download(filename, location, dec_url, tags)
             except RECOVERABLE_ERRORS as e:
                 self.record_failure(f"Download error for {song.get('song', 'unknown song')}: {e}")
@@ -164,6 +167,8 @@ class Manager:
             audio["aART"] = tags["artists"]
         if tags.get("album"):
             audio["\xa9alb"] = tags["album"]
+        if tags.get("track"):
+            audio["trkn"] = [tags["track"]]
         if tags.get("composers"):
             audio["\xa9wrt"] = tags["composers"]
         if tags.get("starring"):
