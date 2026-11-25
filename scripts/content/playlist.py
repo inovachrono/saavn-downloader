@@ -11,7 +11,7 @@ class Playlist:
 
     def get_playlist_id(self, url):
         data = webapi_get(self.session, url, "playlist", p=1, n=20)
-        if "id" not in data:
+        if not data.get("id"):
             raise SaavnError(f"Could not find a playlist at {url}")
         return str(data["id"])
 

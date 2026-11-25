@@ -1,5 +1,5 @@
 from ..download_manager import SONGS, tags_from_song_details
-from ..helper import ANDROID_PARAMS, SaavnError, api_post, require_dict, webapi_get
+from ..helper import ANDROID_PARAMS, SaavnError, api_post, webapi_get
 
 
 class Song:
@@ -8,8 +8,8 @@ class Song:
         self.manager = manager
 
     def get_song_id(self, url):
-        data = require_dict(webapi_get(self.session, url, "song"), url)
-        songs = data.get("songs") or []
+        data = webapi_get(self.session, url, "song")
+        songs = data.get("songs") if isinstance(data, dict) else None
         if not songs:
             raise SaavnError(f"Could not find a song at {url}")
         return songs[0]["id"]

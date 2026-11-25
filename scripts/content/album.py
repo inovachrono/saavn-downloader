@@ -11,7 +11,7 @@ class Album:
 
     def get_album_id(self, url):
         data = webapi_get(self.session, url, "album")
-        if "id" not in data:
+        if not data.get("id"):
             raise SaavnError(f"Could not find an album at {url}")
         return str(data["id"])
 

@@ -119,6 +119,8 @@ A password passed with `-pw` is saved in your shell history, so typing it at the
 
 Run the tests with `pytest`. Tests that call the JioSaavn API only run when `SAAVN_LIVE=1` is set.
 
+`tests/targets.py` lists small songs, albums, playlists and artists that are quick to download when trying out changes by hand.
+
 ## License
 
 [MIT](LICENSE)

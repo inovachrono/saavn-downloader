@@ -16,7 +16,7 @@ class Artist:
     def get_artist_id(self, url):
         data = webapi_get(self.session, url, "artist", p="", n_song=10, n_album=14,
                           sub_type="", category="", sort_order="")
-        if "artistId" not in data:
+        if not data.get("artistId"):
             raise SaavnError(f"Could not find an artist at {url}")
         return str(data["artistId"])
 
