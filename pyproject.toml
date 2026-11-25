@@ -3,12 +3,15 @@ name = "saavn-downloader"
 version = "0.1.0"
 description = "Download songs, albums, playlists and artists from JioSaavn"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
-    "mutagen>=1.47.0",
-    "requests>=2.32.5",
-    "tqdm>=4.67.1",
+    "mutagen>=1.48.1",
+    "requests>=2.34.2",
+    "tqdm>=4.70.1",
 ]
+
+[dependency-groups]
+dev = ["pytest>=9.2.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

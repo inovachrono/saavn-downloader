@@ -13,11 +13,13 @@ Download songs, albums, playlists and artists from JioSaavn in high quality (320
 
 ## Installation
 
-Requires Python 3.10 or newer.
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then run this in the project folder:
 
 ```sh
-pip install -r requirements.txt
+uv sync
 ```
+
+This installs Python 3.11 or newer and the dependencies into `.venv`.
 
 ## Usage
 
@@ -28,19 +30,19 @@ If a download fails at any point, run the same command again. Songs that were al
 Run the script and paste the URL when asked:
 
 ```sh
-python main.py
+uv run main.py
 ```
 
 Or pass the URL with `-u` / `--url`:
 
 ```sh
-python main.py -u https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j9bfphC2728_
+uv run main.py -u https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j9bfphC2728_
 ```
 
 To download many URLs at once, put them in a text file, one per line, and pass it with `-f` / `--file`:
 
 ```sh
-python main.py -f urls.txt
+uv run main.py -f urls.txt
 ```
 
 ### Download an artist
@@ -48,13 +50,13 @@ python main.py -f urls.txt
 By default every album of the artist is downloaded into its own folder:
 
 ```sh
-python main.py -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
+uv run main.py -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
 ```
 
 Add `-song` to download all of the artist's songs into a single folder instead:
 
 ```sh
-python main.py -song -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
+uv run main.py -song -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
 ```
 
 ### Output folder
@@ -75,7 +77,7 @@ Downloads/
 Use `-o` / `--outFolder` to download somewhere else:
 
 ```sh
-python main.py -o music
+uv run main.py -o music
 ```
 
 ### Proxy
@@ -92,19 +94,19 @@ Sign in to the JioSaavn Android or iOS app at least once before using these comm
 
 | Command | What it does |
 | --- | --- |
-| `python main.py -user -p` | Download all playlists from your profile |
-| `python main.py -user -a` | Download all albums from your profile |
-| `python main.py -user -s` | Download all shows and podcasts from your profile |
-| `python main.py -user -create` | Create a new account |
-| `python main.py -user -clone -create` | Clone your songs, albums and playlists to a new account created by the script |
-| `python main.py -user -clone -copy` | Clone your songs, albums and playlists to an existing account |
+| `uv run main.py -user -p` | Download all playlists from your profile |
+| `uv run main.py -user -a` | Download all albums from your profile |
+| `uv run main.py -user -s` | Download all shows and podcasts from your profile |
+| `uv run main.py -user -create` | Create a new account |
+| `uv run main.py -user -clone -create` | Clone your songs, albums and playlists to a new account created by the script |
+| `uv run main.py -user -clone -copy` | Clone your songs, albums and playlists to an existing account |
 
 When cloning, you are first asked for the account to copy from and then for the account to copy to.
 
 You can also pass your email and password with `-e` / `--email` and `-pw` / `--password`:
 
 ```sh
-python main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
+uv run main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
 ```
 
 A password passed with `-pw` is saved in your shell history, so typing it at the prompt is safer.
@@ -114,8 +116,8 @@ A password passed with `-pw` is saved in your shell history, so typing it at the
 `--dry-run` shows what would be downloaded without downloading it. `--limit N` stops after N songs. Both work with any download command:
 
 ```sh
-python main.py -user -p --dry-run
-python main.py -user -p --limit 2
+uv run main.py -user -p --dry-run
+uv run main.py -user -p --limit 2
 ```
 
 ## Known issues
@@ -125,7 +127,7 @@ python main.py -user -p --limit 2
 
 ## Development
 
-Run the tests with `pytest`. Tests that call the JioSaavn API only run when `SAAVN_LIVE=1` is set.
+`uv sync` also installs pytest. Run the tests with `uv run pytest`. Tests that call the JioSaavn API only run when `SAAVN_LIVE=1` is set.
 
 `tests/targets.py` has a few small songs, albums, playlists and artists to try changes on.
 
