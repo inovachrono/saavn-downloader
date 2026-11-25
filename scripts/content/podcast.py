@@ -1,3 +1,6 @@
+import os
+from urllib.parse import urlparse
+
 from ..download_manager import SHOWS
 from ..helper import RECOVERABLE_ERRORS, api_get
 
@@ -32,7 +35,9 @@ class Podcast:
             for episode in season:
                 try:
                     dec_url = self.manager.decrypt_url(episode["more_info"]["encrypted_media_url"])
-                    filename = self.manager.format_filename(episode["title"], episode["id"])
+                    # some shows are hosted elsewhere as mp3
+                    ext = os.path.splitext(urlparse(dec_url).path)[1] or ".mp4"
+                    filename = self.manager.format_filename(episode["title"], episode["id"], ext)
                     location = self.manager.get_download_location(SHOWS, show_folder, season_name, filename=filename)
                     # TODO: add tags for podcast episodes
                     self.manager.download(f"{show_name} - {season_name} - {filename}", location, dec_url)

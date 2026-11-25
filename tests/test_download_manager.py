@@ -4,7 +4,7 @@ import pytest
 import requests
 
 from scripts import helper
-from scripts.download_manager import tags_from_list_song, tags_from_song_details
+from scripts.download_manager import LimitReached, has_320, tags_from_list_song, tags_from_song_details
 
 
 class FakeResponse:
@@ -126,3 +126,66 @@ def test_tags_from_song_details_music_fallback_is_not_split_into_letters():
 def test_failures_are_counted(manager):
     manager.download_songs([{"song": "broken"}])
     assert manager.failures == 1
+
+
+SONGS = [
+    {"id": f"id{n}", "song": f"Song {n}",
+     "encrypted_media_url": "ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDy9OyCHwmG0FcgA1ieF26kd4Vm/WhQL0FHWbLZmxKh9EBgAPgqc99pQBw7tS9a8Gtq"}
+    for n in range(3)
+]
+
+
+def test_dry_run_downloads_nothing(manager, tmp_path):
+    session = FakeSession(FakeResponse([b"audio"]))
+    manager.session = session
+    manager.dry_run = True
+    manager.download_songs(SONGS, "Albums", "Test [1]")
+    assert session.calls == 0
+    assert not os.listdir(tmp_path)
+    assert manager.count == 3
+
+
+def test_limit_stops_after_n_songs(manager, tmp_path):
+    manager.session = FakeSession(FakeResponse([b"audio"]))
+    manager.limit = 2
+    with pytest.raises(LimitReached):
+        manager.download_songs(SONGS, "Albums", "Test [1]")
+    assert len(os.listdir(tmp_path / "Albums" / "Test [1]")) == 2
+
+
+class NotFoundResponse(FakeResponse):
+    def __init__(self):
+        super().__init__([])
+        self.status_code = 404
+
+    def raise_for_status(self):
+        raise requests.HTTPError("404", response=self)
+
+
+class No320Session:
+    def __init__(self):
+        self.urls = []
+
+    def get(self, url, stream=False, timeout=None):
+        self.urls.append(url)
+        return NotFoundResponse() if "_320.mp4" in url else FakeResponse([b"audio"])
+
+
+def test_has_320():
+    assert has_320({"320kbps": "true"})
+    assert not has_320({"320kbps": "false"})
+    assert has_320({})
+
+
+def test_decrypt_url_uses_160_without_320(manager):
+    enc_url = SONGS[0]["encrypted_media_url"]
+    assert manager.decrypt_url(enc_url, high_quality=False).endswith("_160.mp4")
+
+
+def test_download_falls_back_to_160_when_320_is_missing(manager, tmp_path):
+    session = No320Session()
+    manager.session = session
+    location = os.path.join(str(tmp_path), "song.mp4")
+    assert manager.download("song", location, "https://cdn/x_320.mp4") is True
+    assert session.urls == ["https://cdn/x_320.mp4", "https://cdn/x_160.mp4"]
+    assert os.path.isfile(location)

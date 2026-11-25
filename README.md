@@ -1,6 +1,6 @@
 # Saavn Downloader
 
-Download songs, albums, playlists and artists from JioSaavn in high quality (320 kbps MP4) with metadata.
+Download songs, albums, playlists and artists from JioSaavn in high quality (320 kbps MP4, or 160 kbps if 320 isn't available) with metadata.
 
 ## Features
 
@@ -70,7 +70,7 @@ Downloads/
   Songs/<song> [id].mp4
 ```
 
-The `[id]` is the JioSaavn ID, so albums and songs that share a name never overwrite each other. With `-song`, an artist's songs go straight into `Artists/<artist> [id]/`.
+`[id]` is the JioSaavn ID, so songs and albums with the same name don't overwrite each other. With `-song`, an artist's songs go into `Artists/<artist> [id]/`.
 
 Use `-o` / `--outFolder` to download somewhere else:
 
@@ -109,17 +109,25 @@ python main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
 
 A password passed with `-pw` is saved in your shell history, so typing it at the prompt is safer.
 
+### Dry run and limit
+
+`--dry-run` shows what would be downloaded without downloading it. `--limit N` stops after N songs. Both work with any download command:
+
+```sh
+python main.py -user -p --dry-run
+python main.py -user -p --limit 2
+```
+
 ## Known issues
 
 - Cloning doesn't work with the Saavn-Download-Reloaded package
-- Songs that aren't available in 320 kbps don't get their metadata added
 - JioSaavn Originals and podcasts are downloaded without metadata
 
 ## Development
 
 Run the tests with `pytest`. Tests that call the JioSaavn API only run when `SAAVN_LIVE=1` is set.
 
-`tests/targets.py` lists small songs, albums, playlists and artists that are quick to download when trying out changes by hand.
+`tests/targets.py` has a few small songs, albums, playlists and artists to try changes on.
 
 ## License
 

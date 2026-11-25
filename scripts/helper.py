@@ -161,9 +161,11 @@ def parse_args(argv=None):
     parser.add_argument("-create", "--create", action="store_true", help="Create a new account")
     parser.add_argument("-copy", "--copy", action="store_true", help="Copy to an existing account")
 
-    parser.add_argument("-o", "--outFolder", help="Folder to download into (default: Downloads next to main.py)")
+    parser.add_argument("-o", "--outFolder", help="Folder to download into (default: Downloads)")
     parser.add_argument("-u", "--url", help="URL of the song, playlist, album or artist")
     parser.add_argument("-e", "--email", help="Email of the JioSaavn user")
     parser.add_argument("-pw", "--password", help="Password of the JioSaavn user")
     parser.add_argument("-f", "--file", help="File with the URLs of songs, albums, playlists, artists")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be downloaded without downloading it")
+    parser.add_argument("--limit", type=int, help="Stop after this many songs")
     return parser.parse_args(argv)

@@ -62,28 +62,39 @@ def tags_from_song_details(song):
     }
 
 
+def has_320(info):
+    return str(info.get("320kbps", "true")).lower() != "false"
+
+
+class LimitReached(Exception):
+    pass
+
+
 class Manager:
-    def __init__(self, session, out_folder):
+    def __init__(self, session, out_folder, dry_run=False, limit=None):
         self.session = session
         self.out_folder = os.path.abspath(out_folder)
         self.des_cipher = des(DES_KEY, ECB, b"\0" * 8, pad=None, padmode=PAD_PKCS5)
         self.failures = 0
+        self.dry_run = dry_run
+        self.limit = limit
+        self.count = 0
 
     def record_failure(self, message):
         self.failures += 1
         print(message)
 
-    def decrypt_url(self, enc_url):
+    def decrypt_url(self, enc_url, high_quality=True):
         enc_url = base64.b64decode(enc_url.strip())
         dec_url = self.des_cipher.decrypt(enc_url, padmode=PAD_PKCS5).decode("utf-8")
-        return dec_url.replace("_96.mp4", "_320.mp4")
+        return dec_url.replace("_96.mp4", "_320.mp4" if high_quality else "_160.mp4")
 
     def with_id(self, name, item_id):
-        # the id keeps albums, songs etc. with the same name apart
+        # names aren't unique
         return sanitize_name(f"{html.unescape(name or 'Unknown')} [{item_id}]")
 
-    def format_filename(self, title, song_id):
-        return self.with_id(title, song_id) + ".mp4"
+    def format_filename(self, title, song_id, ext=".mp4"):
+        return self.with_id(title, song_id) + ext
 
     def get_download_location(self, *folders, filename):
         return os.path.join(self.out_folder, *folders, filename)
@@ -92,8 +103,20 @@ class Manager:
         if os.path.isfile(location):
             print(f"Already downloaded: {label}")
             return False
+        if self.limit is not None and self.count >= self.limit:
+            raise LimitReached
+        self.count += 1
+        if self.dry_run:
+            print(f"Would download: {os.path.relpath(location, self.out_folder)}")
+            return False
         print(f"Downloading {label}")
-        part_path = download_file(self.session, url, location, show_progress=True)
+        try:
+            part_path = download_file(self.session, url, location, show_progress=True)
+        except requests.HTTPError as e:
+            if "_320.mp4" not in url or e.response is None or e.response.status_code >= 500:
+                raise
+            print("No 320 kbps version, downloading 160 kbps instead")
+            part_path = download_file(self.session, url.replace("_320.mp4", "_160.mp4"), location, show_progress=True)
         if tags:
             try:
                 self.add_tags(part_path, tags)
@@ -105,7 +128,7 @@ class Manager:
     def download_songs(self, songs, *folders):
         for song in songs:
             try:
-                dec_url = self.decrypt_url(song["encrypted_media_url"])
+                dec_url = self.decrypt_url(song["encrypted_media_url"], has_320(song))
                 filename = self.format_filename(song["song"], song["id"])
                 location = self.get_download_location(*folders, filename=filename)
                 self.download(filename, location, dec_url, tags_from_list_song(song))
