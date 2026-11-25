@@ -112,11 +112,9 @@ def sanitize_name(name):
 
 
 def download_file(session, url, dest_path, timeout=DOWNLOAD_TIMEOUT, show_progress=False, retries=3):
-    # downloads to a .part file and returns its path, the caller renames it when done
+    # returns the .part path, the caller renames it
     part_path = dest_path + ".part"
-    directory = os.path.dirname(part_path)
-    if directory:
-        os.makedirs(directory, exist_ok=True)
+    os.makedirs(os.path.dirname(part_path), exist_ok=True)
 
     for attempt in range(retries + 1):
         try:

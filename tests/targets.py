@@ -1,5 +1,5 @@
 # small pages for the live tests and manual runs:
-#   python main.py -o <folder> -u <url>
+#   uv run main.py -o <folder> -u <url>
 
 # 1 song, about 13 MB
 SONG_URL = "https://www.jiosaavn.com/song/dekha-ek-khwab/QVsJYCJYAV0"
@@ -13,7 +13,7 @@ ALBUM_ID = "19805392"
 PLAYLIST_URL = "https://www.jiosaavn.com/featured/artist-hits-lyrical-folk/C1hi-Wx5hCy5MW-661Z5Dg__"
 PLAYLIST_ID = "1268982627"
 
-# 2 albums, 40 songs (2 with -song); has songs with the same title
+# 2 albums, 40 songs (2 with -song), some with the same title
 ARTIST_URL = "https://www.jiosaavn.com/artist/piano-tecontrol-breath-controller-alto-sax-ajay-singha-songs/OFn9qtzZpXE_"
 ARTIST_ID = "7867165"
 

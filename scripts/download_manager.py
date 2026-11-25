@@ -90,7 +90,6 @@ class Manager:
         return dec_url.replace("_96.mp4", "_320.mp4" if high_quality else "_160.mp4")
 
     def with_id(self, name, item_id):
-        # names aren't unique
         return sanitize_name(f"{html.unescape(name or 'Unknown')} [{item_id}]")
 
     def format_filename(self, title, song_id, ext=".mp4"):

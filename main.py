@@ -15,8 +15,8 @@ DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Downloa
 
 
 def read_urls(filepath):
-    with open(filepath, encoding="utf-8-sig") as fh:
-        return [line.strip() for line in fh if line.strip()]
+    with open(filepath, encoding="utf-8-sig") as f:
+        return [line.strip() for line in f if line.strip()]
 
 
 def run_account(args, session, manager):
