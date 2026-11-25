@@ -1,154 +1,111 @@
 # Saavn Downloader
-The fullset of functionality offered are:
-  - High Qualtiy - MP4 (320 Kbps bitrate)
-  - Songs with metadata
-  - Download Individual Song
-  - Download PlayList
-  - Download Album
-  - Download all Albums of an Artist as Albums
-  - Download all Songs of an Artist as Songs
-  - Download Entire PlayList from user profile
-  - Download Entire Albums from user profile
-  - Download Entire JioSaavn Originals and Podcasts in the user profile
-  - Clone an account to a new account (Created via script)
-  - Clone an account to another account
-  - Create a new account
- 
-###### Python 3.10.* recommended if you are installing it fresh for the project
 
-### Installation
+Download songs, albums, playlists and artists from JioSaavn in high quality (320 kbps MP4) with metadata.
+
+## Features
+
+- Download a single song, playlist or album
+- Download all albums of an artist (one folder per album)
+- Download all songs of an artist
+- Download all playlists, albums, and JioSaavn Originals/podcasts from your profile
+- Clone your library to a new account (created by the script) or to an existing account
+- Create a new account
+
+## Installation
+
+Requires Python 3.10 or newer.
+
 ```sh
-$ pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-### Usage
+## Usage
 
-#### Download Song, Playlist, Album from Web URL
+If a download fails at any point, run the same command again. Songs that were already downloaded are skipped.
+
+### Download a song, playlist or album
+
+Run the script and paste the URL when asked:
+
 ```sh
-$ python main.py
-$ Paste the URL: https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j9bfphC2728_
+python main.py
 ```
 
-#### You can also specify the url in the with -u or --url argument directly
+Or pass the URL with `-u` / `--url`:
+
 ```sh
-$ python main.py -u https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j9bfphC2728_
+python main.py -u https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j9bfphC2728_
 ```
 
-#### If you have more than 1 url and no time to wait use the -f or --file argument to specify the absolute path to txt file with urls pasted line by line
+To download many URLs at once, put them in a text file, one per line, and pass it with `-f` / `--file`:
+
 ```sh
-$ python main.py -f /home/monu/Desktop/urls.txt
+python main.py -f urls.txt
 ```
 
-#### Choose output folder path with the -o or --outFolder argument
-```
-$ python main.py -o /home/monu/Desktop/
-```
+### Download an artist
 
-#### To use a proxy set the http_proxy and https_proxy environment variables
+By default every album of the artist is downloaded into its own folder:
+
 ```sh
-$ export https_proxy=http://127.0.0.1:8080
+python main.py -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
 ```
 
+Add `-song` to download all of the artist's songs into a single folder instead:
 
-### NOTE: If at any point there is an Error or the Download fails you can Retry the same command
-
-#### Download All Albums of an Artist
 ```sh
-$ python main.py -album
-$ Paste the URL of Artist Profile: https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
-``` 
-*\*If none of the flag such as --album, --song is specified for the artist then by default the Artist music will be downloaded in Album folder structure i.e. there will be as many album folders as the number of albums an artist has on jiosaavn and not a single songs folder that you get when --song flag is specified.  
-
-
-#### Download All Songs of an Artist
-```sh
-$ python main.py -song
-$ Paste the URL of Artist Profile: https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
+python main.py -song -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZTGrLv8_
 ```
 
+### Output folder
 
-### Note: Before using below commands as JioSaavn user make sure you have signed into the JioSaavn Android or iOS app at least once.
+Downloads go to the current folder. Use `-o` / `--outFolder` to pick another one:
 
-#### Download All Playlist from your profile
 ```sh
-$ python main.py -user -p
-$ Enter your Email: your_saavn_email
-$ Enter your Password: your_saavn_password
+python main.py -o music
 ```
 
-#### You can also specify the username and password in the arguments using -e or --email, -pw or --password
-```sh
-$ python main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
-```
-*\*The password passed with -pw is saved in your shell history, so typing it at the prompt is safer.
+### Proxy
 
-#### Download All Shows/Podcasts from your profile
+Set the `http_proxy` and `https_proxy` environment variables:
+
 ```sh
-$ python main.py -user -s
+export https_proxy=http://127.0.0.1:8080
 ```
 
-#### Download All Albums from your profile
+## Using your JioSaavn account
+
+Sign in to the JioSaavn Android or iOS app at least once before using these commands. You will be asked for your email and password.
+
+| Command | What it does |
+| --- | --- |
+| `python main.py -user -p` | Download all playlists from your profile |
+| `python main.py -user -a` | Download all albums from your profile |
+| `python main.py -user -s` | Download all shows and podcasts from your profile |
+| `python main.py -user -create` | Create a new account |
+| `python main.py -user -clone -create` | Clone your songs, albums and playlists to a new account created by the script |
+| `python main.py -user -clone -copy` | Clone your songs, albums and playlists to an existing account |
+
+When cloning, you are first asked for the account to copy from and then for the account to copy to.
+
+You can also pass your email and password with `-e` / `--email` and `-pw` / `--password`:
+
 ```sh
-$ python main.py -user -a
-$ Enter your Email: your_saavn_email
-$ Enter your Password: your_saavn_password
+python main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
 ```
 
-#### Clone songs, albums and playlists to a new account(account created by script itself)
-```sh
-$ python main.py -user -clone -create
-$ Enter original account email(FROM): from_account_email
-$ Enter original account password(FROM): from_account_password
-$ Enter the email for new account(TO): new_account_email
-$ Enter the password for new account(TO): new_account_password
-```
+A password passed with `-pw` is saved in your shell history, so typing it at the prompt is safer.
 
-#### Clone songs, albums and playlists to another account(must alreay exist)
-```sh
-$ python main.py -user -clone -copy
-$ Enter original account email(FROM): from_account_email
-$ Enter original account password(FROM): from_account_password
-$ Enter the email of copy account(TO): to_account_email
-$ Enter the password of copy account(TO): to_account_password
-```
+## Known issues
 
-#### Create new account
-```sh
-$ python main.py -user -create
-$ Enter the email: email_you_want_to_use
-$ Enter the password: password_you_want_to_use
-```
+- Cloning doesn't work with the Saavn-Download-Reloaded package
+- Songs that aren't available in 320 kbps don't get their metadata added
+- JioSaavn Originals and podcasts are downloaded without metadata
 
-### Changelog V 0.3
- - Bug fixes for download and metadata store
- - Removed unnessary dependencies and deprecated packages
- - Bumped dependency versions
+## Development
 
-### Changelog V 0.2.2
-  - Added download support for individual songs
-  - Added command argument for input file with urls (-f, --file)
-  - Added command argument for changing output directory (-o, --outFolder)
-  - Added command argument for specifying jiosaavn username and password (-e, --email, -pw, --password)
-  - Removed asynchronous code for artist data retrival
-
-
-### Known Issues
-  - Clone Functionality doesn't work with Saavn-Download-Reloaded package
-  - Songs not having 320kbps don't get their meta data added
-  - No Meta Data in JioSaavn Originals and Podcasts
-
-### Development
-
-Want to contribute? Great!
-
-To run the tests use `pytest`. The tests that call JioSaavn only run with `SAAVN_LIVE=1`.
-
-
-### Contributors
-  - Arun ( Discovering Vulnerability in Saavn App )
-  - [prabaprakash](https://github.com/prabaprakash/)
-  - [monuyadav016](https://github.com/monuyadav016)
-
+Run the tests with `pytest`. Tests that call the JioSaavn API only run when `SAAVN_LIVE=1` is set.
 
 ## License
-This program is licensed under [MIT License](LICENSE)
+
+[MIT](LICENSE)
