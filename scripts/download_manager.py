@@ -1,105 +1,143 @@
-from mutagen.mp4 import MP4, MP4Cover
-import urllib.request
-import re
-import html
-import json
 import base64
+import html
 import os
+import re
 
-from .pyDes import *
-from .helper import argManager, download_file
+import requests
+from mutagen.mp4 import MP4, MP4Cover
 
-REQUEST_TIMEOUT = 60
+from .helper import RECOVERABLE_ERRORS, REQUEST_TIMEOUT, download_file, sanitize_name
+from .pyDes import ECB, PAD_PKCS5, des
 
-class Manager():
-    def __init__(self):
-        self.unicode = str
-        self.args = argManager()
-        self.des_cipher = self.setDecipher()
-    
-    def setDecipher(self):
-        return des(b"38346591", ECB, b"\0\0\0\0\0\0\0\0", pad=None, padmode=PAD_PKCS5)
-    
-    def get_dec_url(self, enc_url):
+DES_KEY = b"38346591"
+DEFAULT_ARTIST = "Non-Artist"
+DEFAULT_ALBUM = "songs"
+
+
+def _split_names(value):
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = value.split(",")
+    return [html.unescape(str(name)).strip() for name in value if str(name).strip()]
+
+
+def _text(value):
+    return html.unescape(str(value)) if value else ""
+
+
+def tags_from_list_song(song):
+    return {
+        "title": _text(song.get("song")),
+        "artists": _split_names(song.get("primary_artists")),
+        "album": _text(song.get("album")),
+        "composers": _split_names(song.get("music")),
+        "starring": _split_names(song.get("starring")),
+        "year": _text(song.get("year")),
+        "copyright": _text(song.get("copyright_text") or song.get("label")),
+        "image": song.get("image", ""),
+    }
+
+
+def tags_from_song_details(song):
+    more_info = song.get("more_info", {})
+    artist_map = more_info.get("artistMap", {})
+    artists = artist_map.get("artists", [])
+
+    def by_role(role):
+        return [a["name"] for a in artists if a.get("role") == role]
+
+    return {
+        "title": _text(song.get("title")),
+        "artists": _split_names([a["name"] for a in artist_map.get("primary_artists", [])]),
+        "album": _text(more_info.get("album")),
+        "composers": _split_names(by_role("music") or more_info.get("music")),
+        "starring": _split_names(by_role("starring")),
+        "year": _text(song.get("year")),
+        "copyright": _text(more_info.get("copyright_text") or more_info.get("label")),
+        "image": song.get("image", ""),
+    }
+
+
+class Manager:
+    def __init__(self, session, out_folder=None):
+        self.session = session
+        self.out_folder = os.path.abspath(out_folder) if out_folder else os.getcwd()
+        self.des_cipher = des(DES_KEY, ECB, b"\0" * 8, pad=None, padmode=PAD_PKCS5)
+        self.failures = 0
+
+    def record_failure(self, message):
+        self.failures += 1
+        print(message)
+
+    def decrypt_url(self, enc_url):
         enc_url = base64.b64decode(enc_url.strip())
         dec_url = self.des_cipher.decrypt(enc_url, padmode=PAD_PKCS5).decode("utf-8")
-        dec_url = dec_url.replace("_96.mp4", "_320.mp4")
-        return dec_url
-    
-    def format_filename(self, filename):
-        filename = html.unescape(filename) + ".mp4"
-        filename = re.sub(r"[<>:\"/\\|?*]", "-", filename)
-        filename = filename.replace("\"", "'")
-        return filename
-    
-    def get_download_location(self, *args):
-        if self.args.outFolder is None:
-            location = os.getcwd()
-        else:
-            location = self.args.outFolder
-        for folder in args:
-            location = os.path.join(location, folder)
-        return location
-    
-    def start_download(self, filename, location, dec_url):
+        return dec_url.replace("_96.mp4", "_320.mp4")
+
+    def format_filename(self, title):
+        return sanitize_name(html.unescape(title), strip=False) + ".mp4"
+
+    def get_download_location(self, *folders, filename):
+        safe_folders = (sanitize_name(html.unescape(folder)) for folder in folders)
+        return os.path.join(self.out_folder, *safe_folders, filename)
+
+    def download(self, label, location, url, tags=None):
         if os.path.isfile(location):
-            print(f"Downloaded {filename}")
+            print(f"Already downloaded: {label}")
             return False
-        else :
-            print(f"Downloading {filename}")
-            download_file(dec_url, location, 60, True)
-            return True
-    
-    def downloadSongs(self, songs_json, album_name="songs", artist_name="Non-Artist"):
-        for song in songs_json["songs"]:
+        print(f"Downloading {label}")
+        part_path = download_file(self.session, url, location, show_progress=True)
+        if tags:
             try:
-                dec_url = self.get_dec_url(song["encrypted_media_url"])
-                filename = self.format_filename(song["song"])
-                location = self.get_download_location(artist_name, album_name, filename)
-                has_downloaded = self.start_download(filename, location, dec_url)
-                if has_downloaded:
-                    try:
-                        name = songs_json["name"] if ("name" in songs_json) else songs_json["listname"]
-                    except:
-                        name = ""
-                    try:
-                        song["primary_artists"] = [artist.strip() for artist in song["primary_artists"].split(",")]
-                        song["singers"] = [artist.strip() for artist in song["singers"].split(",")]
-                        song["music"] = [artist.strip() for artist in song["music"].split(",")]
-                        song["starring"] = [artist.strip() for artist in song["starring"].split(",")]
-                        self.addtags(location, song, name)
-                    except Exception as e:
-                        print("============== Error Adding Meta Data ==============")
-                        print(f"Error : {e}")
-                    print("\n")
+                self.add_tags(part_path, tags)
             except Exception as e:
-                print(f"Download Error : {e}")
-    
-    def addtags(self, filename, json_data, playlist_name):
+                print(f"Error adding metadata: {e}")
+        os.replace(part_path, location)
+        return True
+
+    def download_songs(self, songs, album_name=DEFAULT_ALBUM, artist_name=DEFAULT_ARTIST):
+        for song in songs:
+            try:
+                dec_url = self.decrypt_url(song["encrypted_media_url"])
+                filename = self.format_filename(song["song"])
+                location = self.get_download_location(artist_name, album_name, filename=filename)
+                self.download(filename, location, dec_url, tags_from_list_song(song))
+            except RECOVERABLE_ERRORS as e:
+                self.record_failure(f"Download error for {song.get('song', 'unknown song')}: {e}")
+
+    def fetch_cover(self, image_url):
+        if not image_url:
+            return None
+        cover_url = re.sub(r"-\d+x\d+\.(webp|jpg|png)$", r"-500x500.jpg", image_url)
+        try:
+            response = self.session.get(cover_url, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+        except requests.RequestException as e:
+            print(f"Could not fetch cover art: {e}")
+            return None
+        image_format = MP4Cover.FORMAT_PNG if cover_url.endswith(".png") else MP4Cover.FORMAT_JPEG
+        return MP4Cover(response.content, image_format)
+
+    def add_tags(self, path, tags):
         # https://mutagen.readthedocs.io/en/latest/api/mp4.html
-        audio = MP4(filename)
-        if "song" in json_data:
-            audio["\xa9nam"] = html.unescape(self.unicode(json_data["song"]))
-        if "primary_artists" in json_data:
-            audio["\xa9ART"] = [html.unescape(self.unicode(artist)) for artist in json_data["primary_artists"]]
-        if "album" in json_data:
-            audio["\xa9alb"] = html.unescape(self.unicode(json_data["album"]))
-        if "singers" in json_data:
-            audio["aART"] = [html.unescape(self.unicode(singer)) for singer in json_data["singers"]]
-        if "music" in json_data:
-            audio["\xa9wrt"] = [html.unescape(self.unicode(music)) for music in json_data["music"]]
-        if "starring" in json_data:
-            audio["desc"] = html.unescape(self.unicode(f"Starring: {','.join(json_data['starring'])}"))
-        # audio["\xa9gen"] = html.unescape(self.unicode(playlist_name))
-        if "copyright_text" in json_data:
-            audio["cprt"] = html.unescape(self.unicode(json_data["copyright_text"]))
-        if "year" in json_data:
-            audio["\xa9day"] = html.unescape(self.unicode(json_data["year"]))
-        if "label" in json_data:
-            audio["cprt"] = html.unescape(self.unicode(json_data["label"]))
-        cover_url = re.sub(r'-\d+x\d+\.webp', '-500x500.jpg', json_data["image"])
-        fd = urllib.request.urlopen(cover_url)
-        cover = MP4Cover(fd.read(), getattr(MP4Cover, "FORMAT_PNG" if cover_url.endswith("png") else "FORMAT_JPEG"))
-        fd.close()
-        audio["covr"] = [cover]
+        audio = MP4(path)
+        if tags.get("title"):
+            audio["\xa9nam"] = tags["title"]
+        if tags.get("artists"):
+            audio["\xa9ART"] = tags["artists"]
+            audio["aART"] = tags["artists"]
+        if tags.get("album"):
+            audio["\xa9alb"] = tags["album"]
+        if tags.get("composers"):
+            audio["\xa9wrt"] = tags["composers"]
+        if tags.get("starring"):
+            audio["desc"] = "Starring: " + ", ".join(tags["starring"])
+        if tags.get("year"):
+            audio["\xa9day"] = tags["year"]
+        if tags.get("copyright"):
+            audio["cprt"] = tags["copyright"]
+        cover = self.fetch_cover(tags.get("image"))
+        if cover is not None:
+            audio["covr"] = [cover]
         audio.save()

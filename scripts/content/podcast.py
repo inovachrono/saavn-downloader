@@ -1,59 +1,45 @@
-import os
-import json
-import requests
+from ..helper import RECOVERABLE_ERRORS, api_get
 
-from ..helper import setProxy, argManager
-from ..download_manager import Manager
 
 class Podcast:
-    def __init__(self, proxies, headers, url=None):
-        self.proxies = proxies
-        self.headers = headers
-        self.url = None
-    
-    def getPodcast(self, showId):
-        show_homepage_json = []
-        show_json = {}
-        response = requests.get(
-                    "https://www.jiosaavn.com/api.php?_format=json&show_id={}&__call=show.getHomePage".format(showId), proxies=self.proxies, headers=self.headers)
-        show_homepage_json = [x for x in response.text.splitlines() if x.strip().startswith("{")][0]
-        show_homepage_json = json.loads(show_homepage_json)
-        no_of_seasons = len(show_homepage_json["seasons"])
-        for season in range(no_of_seasons):   # Note that season value starts from 0 for the program but from 1 for the url
-            no_of_episodes = show_homepage_json["seasons"][season]["more_info"]["numEpisodes"]
-            response = requests.get(
-                "https://www.jiosaavn.com/api.php?season_number={}&show_id={}&n={}&_format=json&__call=show.getAllEpisodes&sort_order=asc".
-                format(season+1, showId, no_of_episodes),
-                 proxies=self.proxies, headers=self.headers)
-            season_json = [x for x in response.text.splitlines() if x.strip().startswith("[")][0]
-            season_json = json.loads(season_json)  # A list containing all the episodes in the season
-            show_json[season] = season_json   # To build a dictionary containing all the season in the show
-        return show_json
-    
-    def downloadPodcast(self, show_json):
-        manager = Manager()
-        show_name = show_json.get(0)[0]["more_info"]["show_title"]
-        print("Show Name: {}".format(show_name))
-        for season, season_json in show_json.items():
-            season_name = "Season {}".format(season+1)
-            print("Season: {}".format(season_name))
-            for episode in season_json:
+    def __init__(self, session, manager):
+        self.session = session
+        self.manager = manager
+
+    def get_show(self, show_id):
+        home = api_get(self.session, "show.getHomePage", show_id=show_id)
+        seasons = {}
+        for number, season in enumerate(home["seasons"], start=1):
+            seasons[number] = api_get(
+                self.session, "show.getAllEpisodes", season_number=number, show_id=show_id,
+                n=season["more_info"]["numEpisodes"], sort_order="asc",
+            )
+        return seasons
+
+    def download_show(self, show_id):
+        seasons = self.get_show(show_id)
+        episodes = [episode for season in seasons.values() for episode in season]
+        if not episodes:
+            print(f"No episodes found for show {show_id}")
+            return
+        show_name = episodes[0]["more_info"]["show_title"]
+        print(f"Show: {show_name}")
+        for number, season in seasons.items():
+            season_name = f"Season {number}"
+            print(season_name)
+            for episode in season:
                 try:
-                    dec_url = manager.get_dec_url(episode["more_info"]["encrypted_media_url"])
-                    # dec_url = dec_url.replace("_96.mp4", "_320.mp4")   # Change in url gives invalid xml
-                    filename = manager.format_filename(episode["title"])
-                    location = manager.get_download_location(show_name, season_name, filename)
-                    has_downloaded = manager.start_download("Show: {} - Season: {} - Episode: {}".format(
-                        show_name, season_name, filename),
-                        location, dec_url)
-                    if has_downloaded:
-                        # TODO: Add tags for to the podcast episodes
-                        print("\n")
-                except Exception as e:
-                    print("Download Error: {0}".format(e))
-    
-    def dowloadAllPodcasts(self, library_json):
-        if library_json.get("show") is not None:
-            for showId in library_json["show"]:
-                # TODO download the show
-                self.downloadPodcast(self.getPodcast(showId))
+                    dec_url = self.manager.decrypt_url(episode["more_info"]["encrypted_media_url"])
+                    filename = self.manager.format_filename(episode["title"])
+                    location = self.manager.get_download_location(show_name, season_name, filename=filename)
+                    # TODO: add tags for podcast episodes
+                    self.manager.download(f"{show_name} - {season_name} - {filename}", location, dec_url)
+                except RECOVERABLE_ERRORS as e:
+                    self.manager.record_failure(f"Download error: {e}")
+
+    def download_all(self, library_json):
+        for show_id in library_json.get("show") or []:
+            try:
+                self.download_show(show_id)
+            except RECOVERABLE_ERRORS as e:
+                self.manager.record_failure(f"Error getting show {show_id}: {e}")

@@ -1,77 +1,89 @@
-from scripts.helper import argManager, setProxy, scan_url
-from scripts.content.playlist import Playlist
+import getpass
+import sys
+
 from scripts.content.album import Album
 from scripts.content.artist import Artist
+from scripts.content.playlist import Playlist
 from scripts.content.song import Song
+from scripts.download_manager import Manager
+from scripts.helper import RECOVERABLE_ERRORS, create_session, parse_args, scan_url
 from scripts.saavnaccount import Account
 
-class Download():
-    def __init__(self):
-        urls = []
+CONTENT_TYPES = {"album": Album, "playlist": Playlist, "song": Song}
 
-    def read_urls(self, filepath):
-        urls = []
-        with open(filepath, "r") as fh:
-            for line in fh:
-                url = line.strip()
-                if url:
-                    urls.append(url)
-        return urls
 
-    def run(self):
-        args = argManager()
-        album_name="songs"
-        proxies, headers = setProxy()
+def read_urls(filepath):
+    with open(filepath, encoding="utf-8-sig") as fh:
+        return [line.strip() for line in fh if line.strip()]
 
-        # Manage for jio saavn users
-        if args.user:
-            if args.email and args.password:
-                email = args.email
-                password = args.password
+
+def run_account(args, session, manager):
+    if args.clone and args.create == args.copy:
+        print("Use -clone with exactly one of -create or -copy")
+        return False
+    if not (args.playlists or args.albums or args.shows or args.clone or args.create):
+        print("With -user, choose one of -p, -a, -s, -clone or -create")
+        return False
+
+    email = args.email or input("Enter your email for JioSaavn: ").strip()
+    password = args.password or getpass.getpass("Enter your password for JioSaavn: ")
+    account = Account(session, manager, email, password)
+
+    if args.playlists:
+        account.download_playlists()
+    elif args.albums:
+        account.download_albums()
+    elif args.shows:
+        account.download_shows()
+    elif args.clone:
+        return account.clone_interactive(create_new=args.create)
+    else:
+        return account.create_user()
+    return True
+
+
+def run_downloads(args, session, manager):
+    urls = []
+    if args.url:
+        urls.append(args.url)
+    if args.file:
+        urls.extend(read_urls(args.file))
+    if not urls:
+        urls = [input("Enter the URL: ").strip()]
+
+    failed = 0
+    for url in urls:
+        kind = scan_url(url)
+        try:
+            if kind == "artist":
+                Artist(session, manager, songs_only=args.song).start_download(url)
+            elif kind in CONTENT_TYPES:
+                CONTENT_TYPES[kind](session, manager).start_download(url)
             else:
-                email = input("Enter your email for jiosaavn: ").strip()
-                password = input("Enter your password for jiosaavn: ").strip()
-            account = Account(proxies=proxies, headers=headers, email=email, password=password)
-            if args.p:
-                account.start_download_playlist()
-            elif args.a:
-                account.start_download_album()
-            elif args.s:
-                account.start_download_podcast()
-            elif args.clone:
-                account.get_details_n_clone(args.clone, args.create, args.copy)
-            elif args.create:
-                account.create_user(email, password)
-        
-        # Manage for all default downloads
-        # Note: Passing the url parameter to the contructor of Playlist, Album and Artist is must
-        else:
-            if args.url is None and args.file is None:
-                dl_urls = [input("Enter the URL : ").strip()]
-            elif args.url is None and args.file:
-                dl_urls = self.read_urls(args.file)
-            else:
-                dl_urls = [args.url]
+                print(f"Invalid URL: {url}")
+                failed += 1
+        except RECOVERABLE_ERRORS as e:
+            print(f"Failed to download {url}: {e}")
+            failed += 1
+    return failed == 0
 
-            for dl_url in dl_urls:
-                dl_type = scan_url(url=dl_url)
-                if dl_type == "playlist":      
-                    playlist = Playlist(proxies, headers, dl_url)
-                    playlist.start_download()
-                elif dl_type == "album":
-                    album = Album(proxies, headers, dl_url)
-                    album.start_download()
-                elif dl_type == "artist":
-                    artist = Artist(proxies, headers, args, dl_url)
-                    artist.start_download()
-                elif dl_type == "song":
-                    song = Song(proxies, headers, dl_url)
-                    song.start_download()
-                else:
-                    print("Invalid URL:", dl_url)
-        print("DONE\n")
+
+def main(argv=None):
+    args = parse_args(argv)
+    session = create_session()
+    manager = Manager(session, args.outFolder)
+    try:
+        ok = run_account(args, session, manager) if args.user else run_downloads(args, session, manager)
+    except RECOVERABLE_ERRORS as e:
+        print(f"Error: {e}")
+        ok = False
+    except KeyboardInterrupt:
+        print("\nCancelled")
+        return 130
+    ok = ok and manager.failures == 0
+    print("DONE" if ok else "Finished with errors")
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
-    obj = Download()
-    obj.run()
+    sys.exit(main())

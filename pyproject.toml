@@ -1,7 +1,7 @@
 [project]
 name = "saavn-downloader"
 version = "0.1.0"
-description = "Add your description here"
+description = "Download songs, albums, playlists and artists from JioSaavn"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -9,3 +9,7 @@ dependencies = [
     "requests>=2.32.5",
     "tqdm>=4.67.1",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["Tests"]
+pythonpath = ["."]

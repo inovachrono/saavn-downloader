@@ -39,9 +39,14 @@ $ python main.py -u https://www.jiosaavn.com/album/tum-hi-aana-from-marjaavaan/j
 $ python main.py -f /home/monu/Desktop/urls.txt
 ```
 
-#### Choose output folder path with the -o or --outFolder argument (The output path must be absolute path and not relative)
+#### Choose output folder path with the -o or --outFolder argument
 ```
 $ python main.py -o /home/monu/Desktop/
+```
+
+#### To use a proxy set the http_proxy and https_proxy environment variables
+```sh
+$ export https_proxy=http://127.0.0.1:8080
 ```
 
 
@@ -74,6 +79,12 @@ $ Enter your Password: your_saavn_password
 #### You can also specify the username and password in the arguments using -e or --email, -pw or --password
 ```sh
 $ python main.py -user -e YOUR_EMAIL -pw YOUR_PASSWORD -p
+```
+*\*The password passed with -pw is saved in your shell history, so typing it at the prompt is safer.
+
+#### Download All Shows/Podcasts from your profile
+```sh
+$ python main.py -user -s
 ```
 
 #### Download All Albums from your profile
@@ -130,6 +141,8 @@ $ Enter the password: password_you_want_to_use
 
 Want to contribute? Great!
 
+To run the tests use `pytest`. The tests that call JioSaavn only run with `SAAVN_LIVE=1`.
+
 
 ### Contributors
   - Arun ( Discovering Vulnerability in Saavn App )
@@ -138,4 +151,4 @@ Want to contribute? Great!
 
 
 ## License
-This program is licensed under [MIT License](https://raw.githubusercontent.com/monuyadav016/Saavn-downloader/master/LICENSE)
+This program is licensed under [MIT License](LICENSE)

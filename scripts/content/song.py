@@ -1,108 +1,31 @@
-import requests
-import json
+from ..download_manager import DEFAULT_ALBUM, DEFAULT_ARTIST, tags_from_song_details
+from ..helper import ANDROID_PARAMS, SaavnError, api_post, require_dict, webapi_get
 
 
-from ..helper import setProxy, argManager
-from ..download_manager import Manager
+class Song:
+    def __init__(self, session, manager):
+        self.session = session
+        self.manager = manager
 
-class Song():
-    def __init__(self, proxies, headers, url=None):
-        self.session = requests.session()
-        self.session.headers.update(headers)
-        self.session.proxies.update(proxies)
-        self.payload = {
-                '_marker': '0',
-                'cc': '',
-                'pids': None,
-                'ctx': 'android',
-                'network_operator': '',
-                'v': '224',
-                'app_version': '6.8.2',
-                'build': 'Pro',
-                'api_version': '4',
-                'network_type': 'WIFI',
-                '_format': 'json',
-                '__call': 'song.getDetails',
-                'manufacturer': 'Samsung',
-                'readable_version': '6.8.2',
-                'network_subtype': '',
-                'model': 'Samsung Galaxy S10'
-            }
-        self.args = argManager()
-        self.url = url
-        self.songID: str | None = None
-        self.song_json: dict | None = None
+    def get_song_id(self, url):
+        data = require_dict(webapi_get(self.session, url, "song"), url)
+        songs = data.get("songs") or []
+        if not songs:
+            raise SaavnError(f"Could not find a song at {url}")
+        return songs[0]["id"]
 
-    def setSongID(self, song_id):
-        self.songID = song_id
+    def get_song(self, song_id):
+        data = api_post(self.session, {**ANDROID_PARAMS, "__call": "song.getDetails", "pids": song_id})
+        if song_id not in data:
+            raise SaavnError(f"No song found with ID {song_id}")
+        return data[song_id]
 
-    def getSongID(self):
-        if self.url:
-            input_url = self.url
-        else:
-            input_url = input("Enter the URL : ")
-        token = input_url.split("/")[-1]
-        input_url = "https://www.jiosaavn.com/api.php?__call=webapi.get&token={0}&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0".format(token)
-        response = self.session.get(input_url)
-        try:
-            self.songID = response.json()["songs"][0]["id"]
-            return self.songID
-        except Exception as e:
-            print("Unable to get the song from URL")
-            print(e)
-            exit()
+    def download_song(self, song_id):
+        song = self.get_song(song_id)
+        dec_url = self.manager.decrypt_url(song["more_info"]["encrypted_media_url"])
+        filename = self.manager.format_filename(song["title"])
+        location = self.manager.get_download_location(DEFAULT_ARTIST, DEFAULT_ALBUM, filename=filename)
+        self.manager.download(filename, location, dec_url, tags_from_song_details(song))
 
-    def getSong(self, song_id=None):
-        if song_id is None:
-            self.payload["pids"] = self.getSongID()
-        else:
-            self.payload["pids"] = song_id
-        url = "https://www.jiosaavn.com/api.php" # POST request
-        response = self.session.post(url, data=self.payload)
-        try:
-            song_json = [x for x in response.text.splitlines() if x.strip().startswith('{')][0]
-            self.song_json = json.loads(song_json)
-        except Exception as e:
-            print("An error occured getting the song information")
-            print(e)
-        finally:
-            return self.song_json
-
-    def downloadSong(self, album_name='songs', artist_name='Non-Artist'):
-        manager = Manager()
-        if self.songID is None or self.song_json is None:
-            print("Song ID and song_json cannot be None")
-            return
-        song = self.song_json[self.songID]
-        try:
-            dec_url = manager.get_dec_url(song["more_info"]['encrypted_media_url'])
-            filename = manager.format_filename(song['title'])
-            location = manager.get_download_location(artist_name, album_name, filename)
-            has_downloaded = manager.start_download(filename, location, dec_url)
-            if has_downloaded:
-                name = song.get('subtitle', '')
-                try:
-                    song["song"] = song["title"]
-                    song["primary_artists"] = [artist["name"] for artist in song["more_info"]["artistMap"]["primary_artists"]]
-                    song["album"] = song["more_info"]["album"]
-                    song["singers"] = [artist["name"] for artist in song["more_info"]["artistMap"]["artists"] if artist["role"] == "singer"]
-                    song["music"] = [artist["name"] for artist in song["more_info"]["artistMap"]["artists"] if artist["role"] == "music"] or song["more_info"]["music"]
-                    song["starring"] = [artist["name"] for artist in song["more_info"]["artistMap"]["artists"] if artist["role"] == "starring"]
-                    song["copyright_text"] = song["more_info"]["copyright_text"]
-                    song["label"] = song["more_info"]["label"]
-                except Exception as e:
-                    print("Error creating song tag information")
-                    print(e)
-                manager.addtags(location, song, name)
-                print('\n')
-        except Exception as e:
-            print('Download Error : {0}'.format(e))
-
-    def start_download(self):
-        self.getSongID()
-        self.getSong()
-        self.downloadSong()
-
-
-if __name__ == '__main__':
-    pass
+    def start_download(self, url):
+        self.download_song(self.get_song_id(url))
