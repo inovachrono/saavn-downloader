@@ -105,10 +105,9 @@ def scan_url(url):
     return None
 
 
-def sanitize_name(name, strip=True):
-    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", name)
-    if strip:  # windows drops trailing dots and spaces from folder names
-        name = name.strip().rstrip(".")
+def sanitize_name(name):
+    # windows drops trailing dots and spaces from names
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "-", name).strip().rstrip(".")
     return name or "_"
 
 
@@ -162,7 +161,7 @@ def parse_args(argv=None):
     parser.add_argument("-create", "--create", action="store_true", help="Create a new account")
     parser.add_argument("-copy", "--copy", action="store_true", help="Copy to an existing account")
 
-    parser.add_argument("-o", "--outFolder", help="Folder to store the downloaded songs in")
+    parser.add_argument("-o", "--outFolder", help="Folder to download into (default: Downloads next to main.py)")
     parser.add_argument("-u", "--url", help="URL of the song, playlist, album or artist")
     parser.add_argument("-e", "--email", help="Email of the JioSaavn user")
     parser.add_argument("-pw", "--password", help="Password of the JioSaavn user")

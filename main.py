@@ -1,4 +1,5 @@
 import getpass
+import os
 import sys
 
 from scripts.content.album import Album
@@ -10,6 +11,7 @@ from scripts.helper import RECOVERABLE_ERRORS, create_session, parse_args, scan_
 from scripts.saavnaccount import Account
 
 CONTENT_TYPES = {"album": Album, "playlist": Playlist, "song": Song}
+DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Downloads")
 
 
 def read_urls(filepath):
@@ -71,7 +73,7 @@ def run_downloads(args, session, manager):
 def main(argv=None):
     args = parse_args(argv)
     session = create_session()
-    manager = Manager(session, args.outFolder)
+    manager = Manager(session, args.outFolder or DOWNLOAD_DIR)
     try:
         ok = run_account(args, session, manager) if args.user else run_downloads(args, session, manager)
     except RECOVERABLE_ERRORS as e:

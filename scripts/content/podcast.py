@@ -1,3 +1,4 @@
+from ..download_manager import SHOWS
 from ..helper import RECOVERABLE_ERRORS, api_get
 
 
@@ -24,14 +25,15 @@ class Podcast:
             return
         show_name = episodes[0]["more_info"]["show_title"]
         print(f"Show: {show_name}")
+        show_folder = self.manager.with_id(show_name, show_id)
         for number, season in seasons.items():
             season_name = f"Season {number}"
             print(season_name)
             for episode in season:
                 try:
                     dec_url = self.manager.decrypt_url(episode["more_info"]["encrypted_media_url"])
-                    filename = self.manager.format_filename(episode["title"])
-                    location = self.manager.get_download_location(show_name, season_name, filename=filename)
+                    filename = self.manager.format_filename(episode["title"], episode["id"])
+                    location = self.manager.get_download_location(SHOWS, show_folder, season_name, filename=filename)
                     # TODO: add tags for podcast episodes
                     self.manager.download(f"{show_name} - {season_name} - {filename}", location, dec_url)
                 except RECOVERABLE_ERRORS as e:

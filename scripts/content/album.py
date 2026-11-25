@@ -1,6 +1,6 @@
 import html
 
-from ..download_manager import DEFAULT_ALBUM, DEFAULT_ARTIST
+from ..download_manager import ALBUMS
 from ..helper import SaavnError, api_get, webapi_get
 
 
@@ -21,11 +21,11 @@ class Album:
             raise SaavnError(f"No album found with ID {album_id}")
         return album
 
-    def download_album(self, album_id, artist_name=DEFAULT_ARTIST):
+    def download_album(self, album_id, parent=(ALBUMS,)):
         album = self.get_album(album_id)
-        album_name = album.get("name", "").replace("&quot;", "'") or DEFAULT_ALBUM
-        print(f"Album name: {html.unescape(album_name)}")
-        self.manager.download_songs(album["songs"], album_name, artist_name)
+        print(f"Album name: {html.unescape(album.get('name', album_id))}")
+        folder = self.manager.with_id(album.get("name"), album_id)
+        self.manager.download_songs(album["songs"], *parent, folder)
 
     def start_download(self, url):
         self.download_album(self.get_album_id(url))

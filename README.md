@@ -59,7 +59,20 @@ python main.py -song -u https://www.jiosaavn.com/artist/babbal-rai-albums/pRd5ZT
 
 ### Output folder
 
-Downloads go to the current folder. Use `-o` / `--outFolder` to pick another one:
+Everything is downloaded into a `Downloads` folder next to `main.py`:
+
+```
+Downloads/
+  Albums/<album> [id]/<song> [id].mp4
+  Artists/<artist> [id]/<album> [id]/<song> [id].mp4
+  Playlists/<playlist> [id]/<song> [id].mp4
+  Shows/<show> [id]/Season 1/<episode> [id].mp4
+  Songs/<song> [id].mp4
+```
+
+The `[id]` is the JioSaavn ID, so albums and songs that share a name never overwrite each other. With `-song`, an artist's songs go straight into `Artists/<artist> [id]/`.
+
+Use `-o` / `--outFolder` to download somewhere else:
 
 ```sh
 python main.py -o music

@@ -1,5 +1,6 @@
 import html
 
+from ..download_manager import PLAYLISTS
 from ..helper import SaavnError, api_get, webapi_get
 
 
@@ -23,7 +24,8 @@ class Playlist:
     def download_playlist(self, playlist_id):
         playlist = self.get_playlist(playlist_id)
         print(f"Playlist: {html.unescape(playlist.get('listname', playlist_id))}")
-        self.manager.download_songs(playlist["songs"])
+        folder = self.manager.with_id(playlist.get("listname"), playlist_id)
+        self.manager.download_songs(playlist["songs"], PLAYLISTS, folder)
 
     def start_download(self, url):
         self.download_playlist(self.get_playlist_id(url))

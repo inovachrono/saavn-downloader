@@ -10,8 +10,11 @@ from .helper import RECOVERABLE_ERRORS, REQUEST_TIMEOUT, download_file, sanitize
 from .pyDes import ECB, PAD_PKCS5, des
 
 DES_KEY = b"38346591"
-DEFAULT_ARTIST = "Non-Artist"
-DEFAULT_ALBUM = "songs"
+ALBUMS = "Albums"
+ARTISTS = "Artists"
+PLAYLISTS = "Playlists"
+SHOWS = "Shows"
+SONGS = "Songs"
 
 
 def _split_names(value):
@@ -60,9 +63,9 @@ def tags_from_song_details(song):
 
 
 class Manager:
-    def __init__(self, session, out_folder=None):
+    def __init__(self, session, out_folder):
         self.session = session
-        self.out_folder = os.path.abspath(out_folder) if out_folder else os.getcwd()
+        self.out_folder = os.path.abspath(out_folder)
         self.des_cipher = des(DES_KEY, ECB, b"\0" * 8, pad=None, padmode=PAD_PKCS5)
         self.failures = 0
 
@@ -75,12 +78,15 @@ class Manager:
         dec_url = self.des_cipher.decrypt(enc_url, padmode=PAD_PKCS5).decode("utf-8")
         return dec_url.replace("_96.mp4", "_320.mp4")
 
-    def format_filename(self, title):
-        return sanitize_name(html.unescape(title), strip=False) + ".mp4"
+    def with_id(self, name, item_id):
+        # the id keeps albums, songs etc. with the same name apart
+        return sanitize_name(f"{html.unescape(name or 'Unknown')} [{item_id}]")
+
+    def format_filename(self, title, song_id):
+        return self.with_id(title, song_id) + ".mp4"
 
     def get_download_location(self, *folders, filename):
-        safe_folders = (sanitize_name(html.unescape(folder)) for folder in folders)
-        return os.path.join(self.out_folder, *safe_folders, filename)
+        return os.path.join(self.out_folder, *folders, filename)
 
     def download(self, label, location, url, tags=None):
         if os.path.isfile(location):
@@ -96,12 +102,12 @@ class Manager:
         os.replace(part_path, location)
         return True
 
-    def download_songs(self, songs, album_name=DEFAULT_ALBUM, artist_name=DEFAULT_ARTIST):
+    def download_songs(self, songs, *folders):
         for song in songs:
             try:
                 dec_url = self.decrypt_url(song["encrypted_media_url"])
-                filename = self.format_filename(song["song"])
-                location = self.get_download_location(artist_name, album_name, filename=filename)
+                filename = self.format_filename(song["song"], song["id"])
+                location = self.get_download_location(*folders, filename=filename)
                 self.download(filename, location, dec_url, tags_from_list_song(song))
             except RECOVERABLE_ERRORS as e:
                 self.record_failure(f"Download error for {song.get('song', 'unknown song')}: {e}")

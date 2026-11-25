@@ -1,6 +1,4 @@
-import html
 import os
-import re
 
 import pytest
 import requests
@@ -47,14 +45,30 @@ def test_decrypt_url(manager):
 
 
 def test_format_filename(manager):
-    filename = manager.format_filename("Psycho *Saiyaan ?(From &quot;Saaho&quot;)")
-    assert not set('"\\:/<>?*|') & set(filename)
-    assert filename == "Psycho -Saiyaan -(From -Saaho-).mp4"
+    filename = manager.format_filename("Psycho *Saiyaan ?(From &quot;Saaho&quot;)", "B1EORCx4blc")
+    assert filename == "Psycho -Saiyaan -(From -Saaho-) [B1EORCx4blc].mp4"
 
 
-def test_get_download_location_sanitizes_folders(manager, tmp_path):
-    location = manager.get_download_location("Arijit Singh", "Album: Part 1/2", filename="Tum Hi Ho.mp4")
-    assert location == os.path.join(str(tmp_path), "Arijit Singh", "Album- Part 1-2", "Tum Hi Ho.mp4")
+def test_with_id(manager):
+    assert manager.with_id("Album: Part 1/2", "123") == "Album- Part 1-2 [123]"
+    assert manager.with_id(None, "123") == "Unknown [123]"
+
+
+def test_get_download_location(manager, tmp_path):
+    location = manager.get_download_location("Albums", "Aashiqui 2 [1139549]", filename="Tum Hi Ho [x].mp4")
+    assert location == os.path.join(str(tmp_path), "Albums", "Aashiqui 2 [1139549]", "Tum Hi Ho [x].mp4")
+
+
+def test_songs_with_the_same_name_get_separate_files(manager, tmp_path):
+    manager.session = FakeSession(FakeResponse([b"audio"]))
+    enc_url = "ID2ieOjCrwfgWvL5sXl4B1ImC5QfbsDy9OyCHwmG0FcgA1ieF26kd4Vm/WhQL0FHWbLZmxKh9EBgAPgqc99pQBw7tS9a8Gtq"
+    songs = [
+        {"id": "aaa", "song": "Intro", "encrypted_media_url": enc_url},
+        {"id": "bbb", "song": "Intro", "encrypted_media_url": enc_url},
+    ]
+    manager.download_songs(songs, "Albums", "Greatest Hits [1]")
+    folder = tmp_path / "Albums" / "Greatest Hits [1]"
+    assert sorted(os.listdir(folder)) == ["Intro [aaa].mp4", "Intro [bbb].mp4"]
 
 
 def test_download_completes_via_part_file(manager, tmp_path):
@@ -107,14 +121,6 @@ def test_tags_from_song_details_music_fallback_is_not_split_into_letters():
     assert tags["artists"] == ["Kishore Kumar"]
     assert tags["starring"] == ["Amitabh Bachchan"]
     assert tags["copyright"] == "(C) 1981"
-
-
-@pytest.mark.parametrize("title", [
-    "Tum Hi Ho", "Ends with dot.", "  padded  ", "Tom &amp; Jerry", 'Say "Hi"', "A/B: C?", "R&amp;amp;B",
-])
-def test_filenames_match_previous_versions(manager, title):
-    old = re.sub(r"[<>:\"/\|?*]", "-", html.unescape(title) + ".mp4")
-    assert manager.format_filename(title) == old
 
 
 def test_failures_are_counted(manager):

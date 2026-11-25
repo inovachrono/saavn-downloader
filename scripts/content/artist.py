@@ -1,6 +1,7 @@
 import math
 
 from .album import Album
+from ..download_manager import ARTISTS
 from ..helper import RECOVERABLE_ERRORS, SaavnError, api_get, webapi_get
 
 PAGE_SIZE = 10
@@ -35,16 +36,18 @@ class Artist:
         print(f"Total albums of the artist: {total}")
         album_ids = self.get_album_ids(artist_id, total)
         print(f"Albums found: {len(album_ids)}")
+        artist_folder = self.manager.with_id(artist.get("name"), artist_id)
         album = Album(self.session, self.manager)
         for album_id in album_ids:
             try:
-                album.download_album(album_id, artist["name"])
+                album.download_album(album_id, parent=(ARTISTS, artist_folder))
             except RECOVERABLE_ERRORS as e:
                 self.manager.record_failure(f"Error getting album with ID {album_id}: {e}")
 
     def download_all_songs(self, artist_id, artist):
         total = int(artist["topSongs"]["total"])
         print(f"Total songs of the artist: {total}")
+        artist_folder = self.manager.with_id(artist.get("name"), artist_id)
         for page in range(math.ceil(total / PAGE_SIZE)):
             print(f"Getting song page {page + 1}")
             try:
@@ -53,7 +56,7 @@ class Artist:
             except RECOVERABLE_ERRORS as e:
                 self.manager.record_failure(f"Error getting song page {page + 1}: {e}")
                 continue
-            self.manager.download_songs(songs, artist_name=artist["name"])
+            self.manager.download_songs(songs, ARTISTS, artist_folder)
 
     def start_download(self, url):
         artist_id = self.get_artist_id(url)

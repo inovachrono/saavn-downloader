@@ -1,4 +1,4 @@
-from ..download_manager import DEFAULT_ALBUM, DEFAULT_ARTIST, tags_from_song_details
+from ..download_manager import SONGS, tags_from_song_details
 from ..helper import ANDROID_PARAMS, SaavnError, api_post, require_dict, webapi_get
 
 
@@ -23,8 +23,8 @@ class Song:
     def download_song(self, song_id):
         song = self.get_song(song_id)
         dec_url = self.manager.decrypt_url(song["more_info"]["encrypted_media_url"])
-        filename = self.manager.format_filename(song["title"])
-        location = self.manager.get_download_location(DEFAULT_ARTIST, DEFAULT_ALBUM, filename=filename)
+        filename = self.manager.format_filename(song["title"], song_id)
+        location = self.manager.get_download_location(SONGS, filename=filename)
         self.manager.download(filename, location, dec_url, tags_from_song_details(song))
 
     def start_download(self, url):
