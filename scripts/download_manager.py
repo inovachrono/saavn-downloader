@@ -124,13 +124,16 @@ class Manager:
         os.replace(part_path, location)
         return True
 
-    def download_songs(self, songs, *folders):
+    def download_songs(self, songs, *folders, album_artist=None):
         for song in songs:
             try:
                 dec_url = self.decrypt_url(song["encrypted_media_url"], has_320(song))
                 filename = self.format_filename(song["song"], song["id"])
                 location = self.get_download_location(*folders, filename=filename)
-                self.download(filename, location, dec_url, tags_from_list_song(song))
+                tags = tags_from_list_song(song)
+                if album_artist:
+                    tags["album_artist"] = album_artist
+                self.download(filename, location, dec_url, tags)
             except RECOVERABLE_ERRORS as e:
                 self.record_failure(f"Download error for {song.get('song', 'unknown song')}: {e}")
 
@@ -154,6 +157,10 @@ class Manager:
             audio["\xa9nam"] = tags["title"]
         if tags.get("artists"):
             audio["\xa9ART"] = tags["artists"]
+        # players group albums by album + album artist, so it has to be the same on every track
+        if tags.get("album_artist"):
+            audio["aART"] = [tags["album_artist"]]
+        elif tags.get("artists"):
             audio["aART"] = tags["artists"]
         if tags.get("album"):
             audio["\xa9alb"] = tags["album"]

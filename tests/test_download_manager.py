@@ -189,3 +189,29 @@ def test_download_falls_back_to_160_when_320_is_missing(manager, tmp_path):
     assert manager.download("song", location, "https://cdn/x_320.mp4") is True
     assert session.urls == ["https://cdn/x_320.mp4", "https://cdn/x_160.mp4"]
     assert os.path.isfile(location)
+
+
+class FakeMP4(dict):
+    def __init__(self, path):
+        super().__init__()
+
+    def save(self):
+        FakeMP4.saved = dict(self)
+
+
+def test_album_artist_is_the_same_on_every_track(manager):
+    seen = []
+    manager.download = lambda label, location, url, tags: seen.append(tags)
+    songs = [dict(SONGS[0], primary_artists="Singer A"), dict(SONGS[1], primary_artists="Singer B")]
+    manager.download_songs(songs, "Albums", "Test [1]", album_artist="Laxmikant - Pyarelal")
+    assert [t["album_artist"] for t in seen] == ["Laxmikant - Pyarelal"] * 2
+    assert [t["artists"] for t in seen] == [["Singer A"], ["Singer B"]]
+
+
+def test_add_tags_album_artist(manager, monkeypatch):
+    monkeypatch.setattr("scripts.download_manager.MP4", FakeMP4)
+    manager.add_tags("x.mp4", {"artists": ["Singer A"], "album_artist": "Laxmikant - Pyarelal"})
+    assert FakeMP4.saved["aART"] == ["Laxmikant - Pyarelal"]
+    assert FakeMP4.saved["\xa9ART"] == ["Singer A"]
+    manager.add_tags("x.mp4", {"artists": ["Singer A"]})
+    assert FakeMP4.saved["aART"] == ["Singer A"]
